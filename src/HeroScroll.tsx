@@ -83,7 +83,7 @@ export default function HeroScroll({
   logoVideoSrc = asset("logo.mp4"),
   logoWebmAlphaSrc = asset("logo.webm"),
   logoOpacity = 1,
-  logoOffsetYPct = -8,
+  logoOffsetYPct = 0,
   bgOpacity = 0.3,
   showVignette = false,
 }: HeroScrollProps) {
@@ -138,7 +138,7 @@ export default function HeroScroll({
   const { scrollYProgress: aboutProg } = useScroll({ target: aboutImageRef, offset: ["start 80%", "end 20%"] });
   const aboutY = useTransform(aboutProg, [0, 1], [32, 0]);
   const aboutOpacity = useTransform(aboutProg, [0, 0.2, 1], [0, 1, 1]);
-  const aboutScale = useTransform(aboutProg, [0, 1], [1.05, 1]);
+  const aboutScale = useTransform(aboutProg, [0, 1], [2.5, 1]);
 
   // -------- Works data & filtering --------
   // 1) 내가 쓰는 태그를 '정해진 값'으로 선언
@@ -169,11 +169,11 @@ export default function HeroScroll({
 
   type WorkItem = { id: string; title: string; tags: Tag[]; thumb: string };
   const WORKS: WorkItem[] = [
-    { id: "XEEKIN", title: "XEEKIN", tags: ["installation", "performance", "reality", "rhythm_game", "projection_mapping"], thumb: asset("works/XEEKIN.jpg") },
-    { id: "NOISE CANCELLING", title: "NOISE CANCELLING", tags: ["projection_mapping", "reality", "installation", "projection_mapping"], thumb: asset("works/NOISE CANCELLING.jpg") },
-    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("The Unknown box.jpg") },
-    { id: "fog-screen", title: "Fog Screen", tags: ["reality", "projection_mapping"], thumb: asset("works/fog-screen.jpg") },
-    { id: "Groo", title: "Groo", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/Groo.jpg") },
+    { id: "XEEKIN", title: "XEEKIN", tags: ["installation", "performance", "reality", "rhythm_game", "projection_mapping"], thumb: asset("works/XEEKIN.png") },
+    { id: "NOISE CANCELLING", title: "NOISE CANCELLING", tags: ["projection_mapping", "reality", "installation", "projection_mapping"], thumb: asset("works/NOISECANCELLING.png") },
+    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("box.png") },
+    { id: "fog-screen", title: "Fog Screen", tags: ["reality", "projection_mapping"], thumb: asset("works/fog.png") },
+    { id: "Groo", title: "Groo", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/Groo.png") },
   ];
 
 
