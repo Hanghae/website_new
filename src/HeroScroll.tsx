@@ -1,11 +1,11 @@
 /// <reference types="vitest" />
 import { useEffect, useRef, useState, useMemo } from "react";
-import { motion, useScroll, useTransform, useMotionTemplate } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 /**
  * Minimal, text‑only hero with scroll‑driven reveals on a pure‑black background.
  * – Background video (opacity configurable) + optional FOREGROUND looping logo (WebM alpha preferred).
- * – Sticky hero copy up top, then 4 narrative beats that fade/slide in as you scroll.
+ * – Sticky hero copy up top, then Works archive grid with tag filtering, then Contact.
  * – Built with Tailwind + Framer Motion. Drop into any React app.
  */
 
@@ -26,10 +26,27 @@ type HeroScrollProps = {
   showVignette?: boolean;
 };
 
+/**
+ * Safe asset helper that avoids import.meta.env access (which breaks in some sandboxes/CI).
+ * It respects a <base href> if present; otherwise falls back to "/media/...".
+ */
+function asset(p: string) {
+  try {
+    if (typeof document !== "undefined") {
+      const baseHref = document.querySelector("base")?.getAttribute("href") || "/";
+      const prefix = baseHref.endsWith("/") ? baseHref : baseHref + "/";
+      return `${prefix}media/${p}`;
+    }
+  } catch {
+    /* noop */
+  }
+  return `/media/${p}`;
+}
+
 export default function HeroScroll({
-  heroVideoSrc = "/media/hero.mp4",
-  logoVideoSrc = "/media/logo.mp4",
-  logoWebmAlphaSrc = "/media/logo.webm",
+  heroVideoSrc = asset("hero.mp4"),
+  logoVideoSrc = asset("logo.mp4"),
+  logoWebmAlphaSrc = asset("logo.webm"),
   logoOpacity = 1,
   logoOffsetYPct = -8,
   bgOpacity = 0.3,
@@ -86,17 +103,16 @@ export default function HeroScroll({
   // -------- Works data & filtering --------
   type WorkItem = { id: string; title: string; tags: string[]; thumb: string };
   const WORKS: WorkItem[] = [
-    { id: "resonance", title: "RE:SONANCE", tags: ["installation", "touchdesigner", "sensor"], thumb: "/media/works/resonance.jpg" },
-    { id: "mirror-dining", title: "Mirror Dining", tags: ["projection", "restaurant", "mapping"], thumb: "/media/works/mirror-dining.jpg" },
-    { id: "rhythm-editor", title: "Rhythm Editor", tags: ["game", "touchdesigner", "tool"], thumb: "/media/works/rhythm-editor.jpg" },
-    { id: "fog-screen", title: "Fog Screen", tags: ["installation", "prototype"], thumb: "/media/works/fog-screen.jpg" },
-    { id: "uwb-rtls", title: "UWB RTLS", tags: ["uwb", "sensor", "r+d"], thumb: "/media/works/uwb.jpg" },
+    { id: "resonance", title: "RE:SONANCE", tags: ["installation", "touchdesigner", "sensor"], thumb: asset("works/resonance.jpg") },
+    { id: "mirror-dining", title: "Mirror Dining", tags: ["projection", "restaurant", "mapping"], thumb: asset("works/mirror-dining.jpg") },
+    { id: "rhythm-editor", title: "Rhythm Editor", tags: ["game", "touchdesigner", "tool"], thumb: asset("works/rhythm-editor.jpg") },
+    { id: "fog-screen", title: "Fog Screen", tags: ["installation", "prototype"], thumb: asset("works/fog-screen.jpg") },
+    { id: "uwb-rtls", title: "UWB RTLS", tags: ["uwb", "sensor", "r+d"], thumb: asset("works/uwb.jpg") },
   ];
 
   const [activeTag, setActiveTag] = useState<string>("All");
   const allTags = useMemo(() => ["All", ...uniqueTags(WORKS)], []);
   const filteredWorks = useMemo(() => filterByTag(WORKS, activeTag), [activeTag]);
-  
 
   return (
     <div ref={pageRef} className="relative min-h-screen bg-black text-white selection:bg-white selection:text-black">
@@ -203,7 +219,7 @@ export default function HeroScroll({
       <section id="about-image" className="relative min-h-[100svh] bg-black">
         <div ref={aboutImageRef} className="grid h-full place-items-center px-0">
           <motion.img
-            src="/media/about.png"
+            src={asset("about.png")}
             alt="About — career & awards"
             style={{ y: aboutY, opacity: aboutOpacity, scale: aboutScale }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
@@ -214,7 +230,7 @@ export default function HeroScroll({
         </div>
       </section>
 
-      {/* CTA / Projects anchor replaced with Works Archive Grid */}
+      {/* Works Archive Grid (4th) */}
       <section id="works" className="relative min-h-[100svh] bg-black">
         {/* Tag filter row (right-aligned) */}
         <div className="sticky top-[44px] z-30 bg-black/50 backdrop-blur supports-[backdrop-filter]:bg-black/50">
@@ -278,7 +294,7 @@ export default function HeroScroll({
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Contact (5th) */}
       <footer id="contact" className="mx-auto max-w-6xl px-6 pb-16 pt-10 text-sm text-neutral-500 sm:px-10">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <p>© {new Date().getFullYear()} Hwang Su Jong</p>
@@ -434,5 +450,21 @@ void (async () => {
     const items = [{ tags: ["x"] }, { tags: ["y", "x"] }, { tags: ["z"] }];
     // @ts-ignore
     expect(filterByTag(items, "x").length).toBe(2);
+  });
+
+  // New tests for asset() helper
+  // @ts-ignore
+  test("asset returns /media/... by default", () => {
+    // @ts-ignore
+    expect(asset("x.jpg")).toBe("/media/x.jpg");
+  });
+  // @ts-ignore
+  test("asset respects <base href>", () => {
+    const base = document.createElement('base');
+    base.setAttribute('href', '/app/');
+    document.head.append(base);
+    // @ts-ignore
+    expect(asset("y.png")).toBe("/app/media/y.png");
+    base.remove();
   });
 })();
