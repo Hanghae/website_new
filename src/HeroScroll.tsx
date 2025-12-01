@@ -171,7 +171,7 @@ export default function HeroScroll({
   const WORKS: WorkItem[] = [
     { id: "XEEKIN", title: "XEEKIN", tags: ["installation", "performance", "reality", "rhythm_game", "projection_mapping"], thumb: asset("works/XEEKIN.png") },
     { id: "NOISE CANCELLING", title: "NOISE CANCELLING", tags: ["projection_mapping", "reality", "installation", "projection_mapping"], thumb: asset("works/NOISECANCELLING.png") },
-    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("box.png") },
+    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/box.png") },
     { id: "fog-screen", title: "Fog Screen", tags: ["reality", "projection_mapping"], thumb: asset("works/fog.png") },
     { id: "Groo", title: "Groo", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/Groo.png") },
   ];
