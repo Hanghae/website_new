@@ -171,7 +171,7 @@ export default function HeroScroll({
   const WORKS: WorkItem[] = [
     { id: "XEEKIN", title: "XEEKIN", tags: ["installation", "performance", "reality", "rhythm_game", "projection_mapping"], thumb: asset("works/XEEKIN.png") },
     { id: "NOISE CANCELLING", title: "NOISE CANCELLING", tags: ["projection_mapping", "reality", "installation", "projection_mapping"], thumb: asset("works/NOISECANCELLING.png") },
-    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/box.png") },
+    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/box2.png") },
     { id: "fog-screen", title: "Fog Screen", tags: ["reality", "projection_mapping"], thumb: asset("works/fog.png") },
     { id: "Groo", title: "Groo", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/Groo.png") },
   ];
@@ -287,9 +287,9 @@ export default function HeroScroll({
               animate={reduced ? undefined : { opacity: 1, y: 0 }}
               transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
               style={{ y: reduced ? 0 : pY, opacity: reduced ? 1 : pOpacity }}
-              className="mt-6 max-w-3xl text-pretty text-base leading-relaxed text-neutral-200 sm:text-lg"
+              className="mt-6 max-w-3xl text-pretty text-[1.4rem] leading-relaxed text-neutral-200"
             >
-              Text‑only hero. No distractions. Scroll to reveal the work philosophy and jump straight to selected projects.
+              디지털과 현실 사이의 틈을 열어, 플레이할 수 있는 현실을 만듭니다.
             </motion.p>
           </div>
         </div>
