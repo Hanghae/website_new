@@ -32,15 +32,50 @@ type HeroScrollProps = {
  */
 function asset(p: string) {
   try {
+    if (!p) return "";
+    if (/^https?:\/\//.test(p) || p.startsWith("/")) return p;
     if (typeof document !== "undefined") {
       const baseHref = document.querySelector("base")?.getAttribute("href") || "/";
       const prefix = baseHref.endsWith("/") ? baseHref : baseHref + "/";
       return `${prefix}media/${p}`;
     }
-  } catch {
-    /* noop */
-  }
+  } catch {}
   return `/media/${p}`;
+}
+
+// Fallback chain: tries base-aware /media/p, then root /media/p, then root /p
+function assetChain(p: string): string[] {
+  const a = asset(p);
+  const chain = [a];
+  if (!a.startsWith("/media/")) chain.push(`/media/${p}`);
+  chain.push(`/${p}`);
+  // de-dup
+  return Array.from(new Set(chain));
+}
+
+function mimeFrom(url: string): string | undefined {
+  const u = url.toLowerCase();
+  if (u.endsWith(".webm")) return "video/webm";
+  if (u.endsWith(".mp4")) return "video/mp4";
+  if (u.endsWith(".jpg") || u.endsWith(".jpeg")) return "image/jpeg";
+  if (u.endsWith(".png")) return "image/png";
+  return undefined;
+}
+
+function SmartImg({ sources, alt, className }: { sources: string[]; alt: string; className?: string }) {
+  const [idx, setIdx] = useState(0);
+  const src = sources[idx];
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setIdx((i) => (i + 1 < sources.length ? i + 1 : i))}
+      loading="lazy"
+      decoding="async"
+    />
+  );
 }
 
 export default function HeroScroll({
@@ -48,7 +83,7 @@ export default function HeroScroll({
   logoVideoSrc = asset("logo.mp4"),
   logoWebmAlphaSrc = asset("logo.webm"),
   logoOpacity = 1,
-  logoOffsetYPct = -0,
+  logoOffsetYPct = -8,
   bgOpacity = 0.3,
   showVignette = false,
 }: HeroScrollProps) {
@@ -77,6 +112,11 @@ export default function HeroScroll({
     return () => mq.removeEventListener?.("change", handler);
   }, []);
 
+  // lightweight runtime diagnostics (enable with ?debug=1)
+  const [assetErrors, setAssetErrors] = useState<string[]>([]);
+  const markError = (url: string) => setAssetErrors((s) => (s.includes(url) ? s : [...s, url]));
+  const debug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1';
+
   // In-page smooth scroll helper for top-right nav
   const scrollToId = (id: string) => {
     const el = document.getElementById(id);
@@ -101,18 +141,49 @@ export default function HeroScroll({
   const aboutScale = useTransform(aboutProg, [0, 1], [1.05, 1]);
 
   // -------- Works data & filtering --------
-  type WorkItem = { id: string; title: string; tags: string[]; thumb: string };
-  const WORKS: WorkItem[] = [
-    { id: "resonance", title: "RE:SONANCE", tags: ["installation", "touchdesigner", "sensor"], thumb: asset("works/resonance.jpg") },
-    { id: "mirror-dining", title: "Mirror Dining", tags: ["projection", "restaurant", "mapping"], thumb: asset("works/mirror-dining.jpg") },
-    { id: "rhythm-editor", title: "Rhythm Editor", tags: ["game", "touchdesigner", "tool"], thumb: asset("works/rhythm-editor.jpg") },
-    { id: "fog-screen", title: "Fog Screen", tags: ["installation", "prototype"], thumb: asset("works/fog-screen.jpg") },
-    { id: "uwb-rtls", title: "UWB RTLS", tags: ["uwb", "sensor", "r+d"], thumb: asset("works/uwb.jpg") },
+  // 1) 내가 쓰는 태그를 '정해진 값'으로 선언
+  type Tag =
+    | "reality"
+    | "performance"
+    | "installation"
+    | "rhythm_game"
+    | "projection_mapping"
+
+  // 2) 상단 칩(row)에 보여줄 순서 (원하는 순서로 편집)
+  const TAGS: Tag[] = [
+    "reality",
+    "performance",
+    "installation",
+    "rhythm_game",
+    "projection_mapping",
   ];
 
-  const [activeTag, setActiveTag] = useState<string>("All");
-  const allTags = useMemo(() => ["All", ...uniqueTags(WORKS)], []);
-  const filteredWorks = useMemo(() => filterByTag(WORKS, activeTag), [activeTag]);
+  // (선택) 칩에 보일 레이블이 태그 값과 다르면 여기서 바꿔줄 수 있음
+  const TAG_LABEL: Record<Tag, string> = {
+    reality: "reality",
+    performance: "performance",
+    installation: "installation",
+    rhythm_game: "rhythm_game",
+    projection_mapping: "projection_mapping",
+  };
+
+  type WorkItem = { id: string; title: string; tags: Tag[]; thumb: string };
+  const WORKS: WorkItem[] = [
+    { id: "XEEKIN", title: "XEEKIN", tags: ["installation", "performance", "reality", "rhythm_game", "projection_mapping"], thumb: asset("works/XEEKIN.jpg") },
+    { id: "NOISE CANCELLING", title: "NOISE CANCELLING", tags: ["projection_mapping", "reality", "installation", "projection_mapping"], thumb: asset("works/NOISE CANCELLING.jpg") },
+    { id: "The Unknown box", title: "The Unknown box", tags: ["reality", "installation", "projection_mapping"], thumb: asset("The Unknown box.jpg") },
+    { id: "fog-screen", title: "Fog Screen", tags: ["reality", "projection_mapping"], thumb: asset("works/fog-screen.jpg") },
+    { id: "Groo", title: "Groo", tags: ["reality", "installation", "projection_mapping"], thumb: asset("works/Groo.jpg") },
+  ];
+
+
+  const [activeTag, setActiveTag] = useState<"All" | Tag>("All");
+  const allTags = useMemo(() => ["All", ...TAGS] as const, []);
+  const filteredWorks = useMemo(
+    () => (activeTag === "All" ? WORKS : WORKS.filter(w => w.tags.includes(activeTag))),
+    [activeTag]
+  );
+
 
   return (
     <div ref={pageRef} className="relative min-h-screen bg-black text-white selection:bg-white selection:text-black">
@@ -136,14 +207,17 @@ export default function HeroScroll({
         <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           <video
             className="h-full w-full object-cover"
-            src={heroVideoSrc}
             autoPlay
             loop
             muted
             playsInline
             preload="metadata"
             style={{ opacity: clamp01(bgOpacity) }}
-          />
+          >
+            {assetChain("hero.mp4").map((u) => (
+              <source key={u} src={u} type={mimeFrom(u)} onError={() => markError(u)} />
+            ))}
+          </video>
           {showVignette && (
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70" />
           )}
@@ -157,6 +231,7 @@ export default function HeroScroll({
           >
             <video
               className="max-h-[80svh] max-w-[80vw] object-contain"
+              onError={() => markError(logoWebmAlphaSrc)}
               autoPlay
               loop
               muted
@@ -164,7 +239,12 @@ export default function HeroScroll({
               preload="metadata"
               style={{ opacity: clamp01(logoOpacity) }}
             >
-              <source src={logoWebmAlphaSrc} type="video/webm; codecs=vp9" />
+              {assetChain("logo.webm").map((u) => (
+                <source key={u} src={u} type={mimeFrom(u)} onError={() => markError(u)} />
+              ))}
+              {assetChain("logo.mp4").map((u) => (
+                <source key={u} src={u} type={mimeFrom(u)} onError={() => markError(u)} />
+              ))}
             </video>
           </div>
         )}
@@ -218,39 +298,64 @@ export default function HeroScroll({
       {/* ABOUT image (3rd section): transparent PNG centered */}
       <section id="about-image" className="relative min-h-[100svh] bg-black">
         <div ref={aboutImageRef} className="grid h-full place-items-center px-0">
-          <motion.img
-            src={asset("about.png")}
-            alt="About — career & awards"
-            style={{ y: aboutY, opacity: aboutOpacity, scale: aboutScale }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="w-[90vw] max-w-[1600px] object-contain pointer-events-none select-none"
-            loading="lazy"
-            decoding="async"
-          />
+          <motion.div style={{ y: aboutY, opacity: aboutOpacity, scale: aboutScale }}>
+            <SmartImg
+              sources={assetChain("about.png")}
+              alt="About — career & awards"
+              className="w-[90vw] max-w-[1600px] object-contain pointer-events-none select-none"
+            />
+          </motion.div>
         </div>
       </section>
 
       {/* Works Archive Grid (4th) */}
       <section id="works" className="relative min-h-[100svh] bg-black">
-        {/* Tag filter row (right-aligned) */}
+        {/* Tag selector row — “play a ____” concept */}
         <div className="sticky top-[44px] z-30 bg-black/50 backdrop-blur supports-[backdrop-filter]:bg-black/50">
-          <div className="mx-auto max-w-none px-2 py-2 sm:px-4 lg:px-8">
-            <div className="flex w-full items-center justify-end gap-2 sm:gap-3 text-xs sm:text-sm">
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => setActiveTag(tag)}
-                  className={
-                    "px-3 py-1 rounded border transition " +
-                    (activeTag === tag
-                      ? "border-white/60 bg-white/10 text-white"
-                      : "border-white/15 text-white/80 hover:text-white hover:border-white/30")
-                  }
+          <div className="mx-auto max-w-none px-3 py-3 sm:px-6 lg:px-10">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              {/* Left: play a ____ headline */}
+              <div className="text-2xl font-semibold leading-none tracking-tight sm:text-3xl" aria-live="polite">
+                <span className="text-white/70">play a</span>
+                <motion.span
+                  key={activeTag}
+                  initial={{ y: "100%", opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  className="ml-2 inline-block bg-white text-black px-2.5 py-1 rounded-md"
                 >
-                  {tag}
+                  {activeTag === "All" ? "reality" : activeTag}
+                </motion.span>
+              </div>
+
+              {/* Right: tag chips (you can author your own list later; we derive for now) */}
+              <div className="-mx-1 flex flex-wrap items-center gap-2">
+                {allTags.filter((t) => t !== "All").map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setActiveTag(tag)}
+                    className={
+                      "px-3 py-1.5 text-xs sm:text-sm rounded-full border transition " +
+                      (activeTag === tag
+                        ? "border-white bg-white text-black"
+                        : "border-white/20 text-white/85 hover:border-white/40 hover:text-white")
+                    }
+                    aria-pressed={activeTag === tag}
+                  >
+                    {tag}
+                  </button>
+                ))}
+                {/* Reset to All */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTag("All")}
+                  className="ml-1 px-3 py-1.5 text-xs sm:text-sm rounded-full border border-white/10 text-white/60 hover:text-white/90 hover:border-white/30"
+                  title="Show all"
+                >
+                  reset
                 </button>
-              ))}
+              </div>
             </div>
           </div>
         </div>
@@ -267,16 +372,10 @@ export default function HeroScroll({
               <motion.li key={w.id} layout className="group overflow-hidden rounded-lg border border-white/10 bg-white/5">
                 <a href={`/work/${w.id}`} className="block">
                   <div className="aspect-[4/3] overflow-hidden bg-white/5">
-                    <motion.img
-                      src={w.thumb}
+                    <SmartImg
+                      sources={assetChain(w.thumb.replace(/^.*media\//, '').replace(/^\//, ''))}
                       alt={w.title}
-                      loading="lazy"
-                      decoding="async"
                       className="h-full w-full object-cover"
-                      initial={{ opacity: 0, y: 12 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.3 }}
-                      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     />
                   </div>
                   <div className="flex items-center justify-between px-3 py-2 text-xs sm:text-sm">
@@ -295,17 +394,149 @@ export default function HeroScroll({
       </section>
 
       {/* Contact (5th) */}
-      <footer id="contact" className="mx-auto max-w-6xl px-6 pb-16 pt-10 text-sm text-neutral-500 sm:px-10">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} Hwang Su Jong</p>
-          <a className="rounded underline-offset-4 hover:text-neutral-300 hover:underline focus:outline-none focus:ring-2 focus:ring-white/30" href="mailto:su96hwang@gmail.com">
-            Contact
-          </a>
+      {/* Contact (5th) */}
+      <section id="contact" className="mx-auto max-w-3xl px-6 pb-20 pt-10 text-sm text-neutral-200 sm:px-10">
+        <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">Contact</h2>
+        <p className="mt-2 text-neutral-400">
+          프로젝트 문의를 남겨주세요. 메일 앱으로 연결되어 초안이 자동 작성됩니다.
+        </p>
+
+        <ContactForm />
+
+        <p className="mt-6 text-xs text-neutral-500">
+          We use your info solely to respond to your inquiry and delete it after a reasonable period.
+        </p>
+      </section>
+
+
+      {/* Debug panel */}
+      {debug && assetErrors.length > 0 && (
+        <div className="fixed left-2 bottom-2 z-[100] max-w-[90vw] rounded-md border border-white/20 bg-black/80 p-3 text-xs text-white">
+          <p className="mb-2 font-medium">Missing/failed assets:</p>
+          <ul className="list-disc pl-4 opacity-90">
+            {assetErrors.map((u) => (
+              <li key={u}><code className="break-all">{u}</code></li>
+            ))}
+          </ul>
+          <p className="mt-2 opacity-70">Tip: files must exist under <code>/public/media</code> in your repo, case-sensitive on Linux.</p>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
+
+/* ---------------- Contact Form Component ---------------- */
+function ContactForm() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [budget, setBudget] = useState("");
+  const [timeline, setTimeline] = useState("");
+  const [message, setMessage] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const to = "su96hwang@gmail.com";
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      setErr("이름, 이메일, 메시지는 필수입니다.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErr("이메일 형식을 확인해주세요.");
+      return;
+    }
+    if (!agree) {
+      setErr("개인정보 이용에 동의해주세요.");
+      return;
+    }
+
+    const subject = `[Portfolio Inquiry] ${name}`;
+    const lines = [
+      `Name: ${name}`,
+      `Email: ${email}`,
+      budget ? `Budget: ${budget}` : null,
+      timeline ? `Timeline: ${timeline}` : null,
+      "",
+      message,
+    ].filter(Boolean) as string[];
+
+    const href = buildMailto(to, subject, lines.join("\n"));
+
+    try { window.location.href = href; } catch {}
+    try { navigator.clipboard?.writeText(`${subject}\n\n${lines.join("\n")}`); } catch {}
+  }
+
+  const inputCls =
+    "w-full rounded-xl bg-neutral-900/70 border border-neutral-800 px-4 py-3 outline-none focus:ring-2 focus:ring-white/30 placeholder:text-neutral-500";
+  const labelCls = "mb-1 text-xs text-neutral-400";
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-5"
+    >
+      {err && (
+        <div className="sm:col-span-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-red-200 text-xs">
+          {err}
+        </div>
+      )}
+
+      <label className="sm:col-span-1">
+        <div className={labelCls}>Name*</div>
+        <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required />
+      </label>
+
+      <label className="sm:col-span-1">
+        <div className={labelCls}>Email*</div>
+        <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@domain.com" required />
+      </label>
+
+      <label className="sm:col-span-1">
+        <div className={labelCls}>Budget</div>
+        <select className={inputCls} value={budget} onChange={(e) => setBudget(e.target.value)}>
+          <option value="">Select a range</option>
+          <option>Under USD 2k</option>
+          <option>USD 2k–5k</option>
+          <option>USD 5k–10k</option>
+          <option>USD 10k+</option>
+        </select>
+      </label>
+
+      <label className="sm:col-span-1">
+        <div className={labelCls}>Timeline</div>
+        <input className={inputCls} value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="e.g., Jan–Feb" />
+      </label>
+
+      <label className="sm:col-span-2">
+        <div className={labelCls}>Message*</div>
+        <textarea
+          className={ inputCls + " min-h-[140px]" }
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Project summary, goals, tech stack, venue, etc."
+          required
+        />
+      </label>
+
+      <div className="sm:col-span-2 flex items-center justify-between gap-4">
+        <label className="flex items-center gap-2 text-xs text-neutral-400 select-none">
+          <input
+            type="checkbox"
+            className="size-4 rounded border-neutral-700 bg-neutral-900"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+          />
+          I agree that my info will be used solely to respond to my inquiry.
+        </label>
+        <button className="rounded-xl bg-white text-black px-5 py-2.5 font-medium hover:bg-neutral-200">Send</button>
+      </div>
+    </form>
+  );
+}
+
 
 /**
  * ---------- Utilities & tests ----------
@@ -333,6 +564,13 @@ export function isLogoOverlayEnabled(src?: string) {
 export function shouldUseBlend(logoWebmAlphaSrc?: string) {
   return !isLogoOverlayEnabled(logoWebmAlphaSrc);
 }
+
+// Build a robust mailto URL (used by ContactForm)
+export function buildMailto(to: string, subject: string, body: string) {
+  const enc = (s: string) => encodeURIComponent(s).replace(/%20/g, "+");
+  return `mailto:${to}?subject=${enc(subject)}&body=${enc(body)}`;
+}
+
 
 // Works helpers
 export function uniqueTags(items: { tags: string[] }[]): string[] {
