@@ -289,7 +289,7 @@ export default function HeroScroll({
               style={{ y: reduced ? 0 : pY, opacity: reduced ? 1 : pOpacity }}
               className="mt-6 max-w-3xl text-pretty text-[1.4rem] leading-relaxed text-neutral-200"
             >
-              디지털과 현실 사이의 틈을 열어, 플레이할 수 있는 현실을 만듭니다.
+              디지털과 현실을 잇는 인터페이스를 만들고, 그 속에서 현실을 플레이할 수 있는 경험을 설계합니다.
             </motion.p>
           </div>
         </div>
